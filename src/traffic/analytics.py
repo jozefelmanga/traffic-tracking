@@ -88,6 +88,9 @@ class SpeedEstimator:
         if src.shape != (4, 2) or dst.shape != (4, 2):
             raise ValueError("Il faut exactement 4 points image et 4 points monde")
         self.H = cv2.getPerspectiveTransform(src, dst)
+        # L'homographie n'est fiable que dans le quadrilatère calibré : au-delà
+        # (vers l'horizon) elle extrapole et donne des vitesses absurdes.
+        self.zone = src.reshape(-1, 1, 2)
         self.fps = float(fps)
         self.window = window
         self.ema = ema
@@ -100,6 +103,9 @@ class SpeedEstimator:
 
     def update(self, track_id: int, point: Point, frame: int) -> float | None:
         hist = self._hist[track_id]
+        if cv2.pointPolygonTest(self.zone, (float(point[0]), float(point[1])), False) < 0:
+            hist.clear()  # hors zone calibrée : pas de mesure
+            return None
         hist.append((frame, self.to_world(point)))
         if len(hist) < max(3, self.window // 2):
             return None

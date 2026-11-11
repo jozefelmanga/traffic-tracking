@@ -12,9 +12,9 @@ from traffic.pipeline import TrafficPipeline, load_scene  # noqa: E402
 
 FINETUNED = ROOT / "weights" / "best.pt"
 WEIGHTS = {"YOLO11n fine-tuné UA-DETRAC": str(FINETUNED), "YOLO11n COCO (baseline)": "yolo11n.pt"}
-TRACKERS = {
-    "ByteTrack (réglé)": str(ROOT / "configs/trackers/bytetrack_tuned.yaml"),
+TRACKERS = {  # le premier est la valeur par défaut : la meilleure configuration (HOTA 76,0)
     "BoT-SORT (réglé)": str(ROOT / "configs/trackers/botsort_tuned.yaml"),
+    "ByteTrack (réglé)": str(ROOT / "configs/trackers/bytetrack_tuned.yaml"),
     "ByteTrack (défaut)": "bytetrack.yaml",
 }
 EXAMPLE_SCENE = ROOT / "configs" / "scene_example.json"
@@ -54,7 +54,7 @@ with gr.Blocks(title="Analyse de trafic") as demo:
             wsel = gr.Dropdown(list(WEIGHTS), value=list(WEIGHTS)[0], label="Modèle")
             tsel = gr.Dropdown(list(TRACKERS), value=list(TRACKERS)[0], label="Tracker")
             line = gr.Slider(10, 95, value=70, step=1, label="Position de la ligne de comptage (% hauteur)")
-            calib = gr.Checkbox(False, label="Vitesse : utiliser la calibration configs/scene_example.json")
+            calib = gr.Checkbox(True, label="Vitesse : utiliser la calibration configs/scene_example.json")
             maxf = gr.Number(300, label="Nombre max. d'images (0 = toute la vidéo)", precision=0)
             btn = gr.Button("Lancer", variant="primary")
         with gr.Column():

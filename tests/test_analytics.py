@@ -48,9 +48,15 @@ def test_speed_estimator_recovers_known_speed():
     est = SpeedEstimator(img, world, fps, window=10)
     v_ms = 15.0  # 54 km/h -> 150 px/s -> 6 px/frame
     speed = None
-    for f in range(30):
+    for f in range(15):  # y de 0 à 84 px : reste dans la zone calibrée
         speed = est.update(7, (50, f * v_ms / 0.1 / fps), f)
     assert speed == pytest.approx(54.0, rel=1e-3)
+
+
+def test_speed_estimator_ignores_points_outside_calibrated_zone():
+    est = SpeedEstimator([[0, 0], [100, 0], [100, 100], [0, 100]],
+                         [[0, 0], [10, 0], [10, 10], [0, 10]], 25.0, window=4)
+    assert all(est.update(1, (50, 300 + f), f) is None for f in range(10))
 
 
 def test_speed_estimator_rejects_bad_points():

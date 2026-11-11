@@ -107,7 +107,18 @@ reprenable (ne recalculer que ce qui manque).
    dans les sorties des trackers, les boîtes couvertes à plus de 50 % par les zones ignorées
    (`scripts/filter_ignored.py`, zones exportées par `convert_detrac.py --mot-gt` dans `ignored.txt`),
    puis réévaluer. Les deux protocoles (brut / sans zones ignorées) sont présentés côte à côte.
-5. **Résultat après correction :** (à compléter avec le tableau de la version 3)
+5. **Résultat après correction** (version 3, mêmes sorties de suivi, seul le protocole change) :
+   ```
+   config               HOTA         MOTA         IDF1         FP
+   ft_botsort_tuned     61.6 → 76.0  42.8 → 82.4  75.8 → 90.2  54468 → 12732
+   ft_bytetrack_tuned   57.3 → 70.8  35.4 → 74.8  72.6 → 86.4  57962 → 16274
+   ft_bytetrack         56.9 → 70.6  32.6 → 73.8  71.9 → 86.1  60724 → 17227
+   baseline_bytetrack   57.9 → 65.7  48.6 → 73.1  73.0 → 82.7  33228 →  7805
+   ```
+   ~77 % des faux positifs du modèle fine-tuné étaient dans les zones ignorées : l'hypothèse est confirmée.
+   Avec le protocole officiel, le modèle fine-tuné dépasse la baseline sur **toutes** les métriques
+   (meilleure config : +10.3 HOTA, +9.3 MOTA, +7.5 IDF1, −63 % d'ID switches).
+   (capture : `docs/img/fix_ignored_regions.png`)
 
 **Leçon :** une métrique qui baisse n'est pas forcément un modèle qui régresse ; regarder FP et FN séparément
 et vérifier que le protocole d'évaluation correspond à celui du dataset.

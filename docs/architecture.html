@@ -1,0 +1,358 @@
+<title>Architecture du pipeline trafic</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600&display=swap">
+<style>
+/* Layout : une colonne de planches techniques, une figure = une diapositive possible. */
+:root {
+  --bg: #eef1f4;
+  --sheet: #ffffff;
+  --ink: #18212b;
+  --muted: #5a6573;
+  --rule: #c5ced8;
+  --accent: #0a6f8a;
+  --accent-soft: #e3f1f5;
+  --display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --text: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1318; --sheet: #151c23; --ink: #e4e9ee; --muted: #9aa6b2; --rule: #2e3a46;
+    --accent: #4fb8d4; --accent-soft: #13303a; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1318; --sheet: #151c23; --ink: #e4e9ee; --muted: #9aa6b2; --rule: #2e3a46;
+  --accent: #4fb8d4; --accent-soft: #13303a; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 15px/1.55 var(--text);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 40px 64px;
+}
+main { max-width: 1080px; margin: 0 auto; display: grid; gap: 28px; }
+header { display: grid; gap: 10px; }
+.eyebrow { font: 500 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin: 0; }
+h1 { font: 600 clamp(28px, 4.2vw, 40px)/1.1 var(--display); margin: 0; text-wrap: balance; }
+.lede { margin: 0; max-width: 68ch; color: var(--muted); }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: 13px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 8px; }
+.sw { width: 26px; height: 14px; border-radius: 3px; border: 1.5px solid var(--ink); background: var(--sheet); }
+.sw.ac { border-color: var(--accent); background: var(--accent-soft); }
+.sw.dash { height: 0; border: 0; border-top: 2px dashed var(--muted); border-radius: 0; }
+figure { margin: 0; background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; display: grid; }
+.fig-head { display: flex; align-items: baseline; gap: 14px; padding: 16px 20px 0; flex-wrap: wrap; }
+.fig-no { font: 500 12px var(--mono); color: var(--muted); }
+h2 { font: 600 21px/1.2 var(--display); margin: 0; }
+.plate { overflow-x: auto; padding: 8px 12px 4px; }
+.plate svg { display: block; width: 100%; min-width: 760px; height: auto; color: var(--muted); }
+figcaption { padding: 4px 20px 18px; color: var(--muted); font-size: 14px; max-width: 92ch; }
+figcaption b { color: var(--ink); font-weight: 600; }
+code, .mono { font-family: var(--mono); font-size: .92em; }
+.formula { border-top: 1px solid var(--rule); padding: 14px 20px 18px; display: grid; gap: 6px; }
+.formula p { margin: 0; color: var(--muted); font-size: 14px; }
+.formula .eq { font: 500 15px var(--mono); color: var(--ink); overflow-x: auto; white-space: nowrap; }
+
+/* SVG : toutes les couleurs viennent des jetons */
+.bx { fill: var(--sheet); stroke: var(--ink); stroke-width: 1.2; }
+.bx.key { stroke-width: 2; }
+.ac { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.6; }
+.t { fill: var(--ink); font: 600 13px var(--text); }
+.ts { fill: var(--ink); font: 500 12px var(--text); }
+.m { fill: var(--muted); font: 400 11px var(--mono); }
+.m.ink { fill: var(--ink); }
+.m.acc { fill: var(--accent); font-weight: 500; }
+.n { fill: var(--muted); font: 400 10.5px var(--mono); }
+.hd { fill: var(--muted); font: 500 11px var(--mono); letter-spacing: .08em; }
+.ln { stroke: var(--muted); stroke-width: 1.4; fill: none; }
+.ln.d { stroke-dasharray: 5 4; }
+.lab { fill: var(--muted); font: 400 10.5px var(--mono); }
+</style>
+
+<main>
+  <header>
+    <p class="eyebrow">Partie 2 · Architecture</p>
+    <h1>Du flux vidéo aux comptages : détection, suivi, analyse</h1>
+    <p class="lede">Chaque image passe par YOLO11n fine-tuné sur UA-DETRAC, puis par BoT-SORT qui attribue un identifiant stable à chaque véhicule, puis par nos modules d'analyse. Les quatre planches vont de la vue d'ensemble au détail de chaque bloc.</p>
+    <div class="legend" aria-label="Légende">
+      <span><i class="sw"></i>composant existant (Ultralytics)</span>
+      <span><i class="sw ac"></i>notre apport ou notre modification</span>
+      <span><i class="sw dash"></i>hors ligne : entraînement et évaluation</span>
+    </div>
+  </header>
+
+  <!-- ============ 1. Vue d'ensemble ============ -->
+  <figure>
+    <div class="fig-head"><span class="fig-no">FIG. 1</span><h2>Vue d'ensemble du pipeline</h2></div>
+    <div class="plate">
+      <svg viewBox="0 0 1010 228" role="img" aria-label="En ligne : frame 960×540, letterbox 640×640, YOLO11n fine-tuné, BoT-SORT, analyses, sorties. Hors ligne : UA-DETRAC, conversion, fine-tuning qui fournit best.pt, et TrackEval qui évalue les pistes.">
+        <defs><marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs>
+        <text class="hd" x="10" y="26">EN LIGNE · CHAQUE FRAME</text>
+        <rect class="bx" x="10" y="40" width="130" height="60" rx="4"/>
+        <text class="t" x="75" y="66" text-anchor="middle">Frame vidéo</text>
+        <text class="m" x="75" y="84" text-anchor="middle">960×540×3</text>
+        <rect class="bx" x="170" y="40" width="130" height="60" rx="4"/>
+        <text class="t" x="235" y="66" text-anchor="middle">Letterbox</text>
+        <text class="m" x="235" y="84" text-anchor="middle">640×640×3</text>
+        <rect class="ac" x="330" y="40" width="170" height="60" rx="4"/>
+        <text class="t" x="415" y="66" text-anchor="middle">YOLO11n fine-tuné</text>
+        <text class="m" x="415" y="84" text-anchor="middle">4 classes</text>
+        <rect class="bx" x="530" y="40" width="140" height="60" rx="4"/>
+        <text class="t" x="600" y="66" text-anchor="middle">BoT-SORT réglé</text>
+        <text class="m" x="600" y="84" text-anchor="middle">Kalman + GMC</text>
+        <rect class="ac" x="700" y="40" width="140" height="60" rx="4"/>
+        <text class="t" x="770" y="66" text-anchor="middle">Analyses</text>
+        <text class="m" x="770" y="84" text-anchor="middle">3 modules</text>
+        <rect class="bx" x="870" y="40" width="130" height="60" rx="4"/>
+        <text class="t" x="935" y="66" text-anchor="middle">Sorties</text>
+        <text class="m" x="935" y="84" text-anchor="middle">vidéo + CSV</text>
+        <line class="ln" x1="140" y1="70" x2="168" y2="70" marker-end="url(#a1)"/>
+        <line class="ln" x1="300" y1="70" x2="328" y2="70" marker-end="url(#a1)"/>
+        <line class="ln" x1="500" y1="70" x2="528" y2="70" marker-end="url(#a1)"/>
+        <text class="lab" x="515" y="60" text-anchor="middle">N×6</text>
+        <line class="ln" x1="670" y1="70" x2="698" y2="70" marker-end="url(#a1)"/>
+        <text class="lab" x="685" y="60" text-anchor="middle">ID</text>
+        <line class="ln" x1="840" y1="70" x2="868" y2="70" marker-end="url(#a1)"/>
+
+        <text class="hd" x="10" y="140">HORS LIGNE · KAGGLE T4</text>
+        <rect class="bx" x="10" y="150" width="130" height="50" rx="4"/>
+        <text class="t" x="75" y="171" text-anchor="middle">UA-DETRAC</text>
+        <text class="m" x="75" y="188" text-anchor="middle">60 séq. annotées</text>
+        <rect class="ac" x="170" y="150" width="130" height="50" rx="4"/>
+        <text class="t" x="235" y="171" text-anchor="middle">Conversion</text>
+        <text class="m" x="235" y="188" text-anchor="middle">XML → YOLO</text>
+        <rect class="ac" x="330" y="150" width="170" height="50" rx="4"/>
+        <text class="t" x="415" y="171" text-anchor="middle">Fine-tuning</text>
+        <text class="m" x="415" y="188" text-anchor="middle">26 époques</text>
+        <rect class="ac" x="530" y="150" width="310" height="50" rx="4"/>
+        <text class="t" x="685" y="171" text-anchor="middle">TrackEval</text>
+        <text class="m" x="685" y="188" text-anchor="middle">HOTA · MOTA · IDF1, zones ignorées retirées</text>
+        <line class="ln" x1="140" y1="175" x2="168" y2="175" marker-end="url(#a1)"/>
+        <line class="ln" x1="300" y1="175" x2="328" y2="175" marker-end="url(#a1)"/>
+        <line class="ln d" x1="415" y1="150" x2="415" y2="102" marker-end="url(#a1)"/>
+        <text class="lab" x="422" y="130">best.pt</text>
+        <line class="ln d" x1="600" y1="100" x2="600" y2="148" marker-end="url(#a1)"/>
+        <text class="lab" x="607" y="130">pistes MOT</text>
+        <polyline class="ln d" points="235,200 235,216 760,216 760,202" marker-end="url(#a1)"/>
+        <text class="lab" x="520" y="212" text-anchor="middle">vérité terrain MOT (9 séq. de validation)</text>
+      </svg>
+    </div>
+    <figcaption>Le détecteur et le tracker tournent sur chaque frame ; le fine-tuning et l'évaluation sont faits une fois, hors ligne. Le découpage train/val se fait <b>par séquence</b> (51 / 9), pour qu'aucune image d'une vidéo de validation ne serve à l'entraînement.</figcaption>
+  </figure>
+
+  <!-- ============ 2. YOLO11n ============ -->
+  <figure>
+    <div class="fig-head"><span class="fig-no">FIG. 2</span><h2>YOLO11n : tailles des tenseurs, couche par couche</h2></div>
+    <div class="plate">
+      <svg viewBox="0 0 1010 650" role="img" aria-label="Backbone de 640×640×3 à 20×20×256, extraction de P3 80×80×128, P4 40×40×128 et P5 20×20×256 ; neck FPN puis PAN ; trois têtes de détection 80×80, 40×40 et 20×20, soit 8400 ancres, puis décodage DFL et NMS.">
+        <defs><marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs>
+        <text class="hd" x="20" y="44">BACKBONE</text>
+        <text class="hd" x="340" y="44">NECK · FPN ↑</text>
+        <text class="hd" x="560" y="44">NECK · PAN ↓</text>
+        <text class="hd" x="790" y="44">HEAD</text>
+
+        <!-- backbone : rangée i -> y = 64 + 42 i -->
+        <g>
+          <rect class="bx" x="20" y="64" width="280" height="30" rx="3"/>
+          <text class="ts" x="48" y="84">Image d'entrée</text><text class="m ink" x="290" y="84" text-anchor="end">640×640×3</text>
+          <rect class="bx" x="20" y="106" width="280" height="30" rx="3"/>
+          <text class="n" x="30" y="125">0</text><text class="ts" x="48" y="126">Conv 3×3 /2</text><text class="m ink" x="290" y="126" text-anchor="end">320×320×16</text>
+          <rect class="bx" x="20" y="148" width="280" height="30" rx="3"/>
+          <text class="n" x="30" y="167">1</text><text class="ts" x="48" y="168">Conv 3×3 /2</text><text class="m ink" x="290" y="168" text-anchor="end">160×160×32</text>
+          <rect class="bx" x="20" y="190" width="280" height="30" rx="3"/>
+          <text class="n" x="30" y="209">2</text><text class="ts" x="48" y="210">C3k2</text><text class="m ink" x="290" y="210" text-anchor="end">160×160×64</text>
+          <rect class="bx" x="20" y="232" width="280" height="30" rx="3"/>
+          <text class="n" x="30" y="251">3</text><text class="ts" x="48" y="252">Conv 3×3 /2</text><text class="m ink" x="290" y="252" text-anchor="end">80×80×64</text>
+          <rect class="bx key" x="20" y="274" width="280" height="30" rx="3"/>
+          <text class="n" x="30" y="293">4</text><text class="ts" x="48" y="294">C3k2</text><text class="m ink" x="290" y="294" text-anchor="end">80×80×128</text>
+          <rect class="bx" x="20" y="316" width="280" height="30" rx="3"/>
+          <text class="n" x="30" y="335">5</text><text class="ts" x="48" y="336">Conv 3×3 /2</text><text class="m ink" x="290" y="336" text-anchor="end">40×40×128</text>
+          <rect class="bx key" x="20" y="358" width="280" height="30" rx="3"/>
+          <text class="n" x="30" y="377">6</text><text class="ts" x="48" y="378">C3k2</text><text class="m ink" x="290" y="378" text-anchor="end">40×40×128</text>
+          <rect class="bx" x="20" y="400" width="280" height="30" rx="3"/>
+          <text class="n" x="30" y="419">7</text><text class="ts" x="48" y="420">Conv 3×3 /2</text><text class="m ink" x="290" y="420" text-anchor="end">20×20×256</text>
+          <rect class="bx" x="20" y="442" width="280" height="30" rx="3"/>
+          <text class="n" x="30" y="461">8</text><text class="ts" x="48" y="462">C3k2</text><text class="m ink" x="290" y="462" text-anchor="end">20×20×256</text>
+          <rect class="bx" x="20" y="484" width="280" height="30" rx="3"/>
+          <text class="n" x="30" y="503">9</text><text class="ts" x="48" y="504">SPPF (pooling 5×5)</text><text class="m ink" x="290" y="504" text-anchor="end">20×20×256</text>
+          <rect class="bx key" x="20" y="526" width="280" height="30" rx="3"/>
+          <text class="n" x="26" y="545">10</text><text class="ts" x="48" y="546">C2PSA (attention)</text><text class="m ink" x="290" y="546" text-anchor="end">20×20×256</text>
+          <!-- liaisons verticales -->
+          <path class="ln" d="M160,94 V106 M160,136 V148 M160,178 V190 M160,220 V232 M160,262 V274 M160,304 V316 M160,346 V358 M160,388 V400 M160,430 V442 M160,472 V484 M160,514 V526"/>
+        </g>
+
+        <!-- neck FPN -->
+        <rect class="bx" x="340" y="358" width="180" height="30" rx="3"/>
+        <text class="ts" x="350" y="378">↑×2 ⊕ C3k2</text><text class="m ink" x="510" y="378" text-anchor="end">40×40×128</text>
+        <rect class="bx" x="340" y="274" width="180" height="30" rx="3"/>
+        <text class="ts" x="350" y="294">↑×2 ⊕ C3k2</text><text class="m ink" x="510" y="294" text-anchor="end">80×80×64</text>
+        <!-- neck PAN -->
+        <rect class="bx" x="560" y="358" width="180" height="30" rx="3"/>
+        <text class="ts" x="570" y="378">↓/2 ⊕ C3k2</text><text class="m ink" x="730" y="378" text-anchor="end">40×40×128</text>
+        <rect class="bx" x="560" y="526" width="180" height="30" rx="3"/>
+        <text class="ts" x="570" y="546">↓/2 ⊕ C3k2</text><text class="m ink" x="730" y="546" text-anchor="end">20×20×256</text>
+
+        <!-- liaisons backbone -> neck -->
+        <line class="ln" x1="300" y1="289" x2="338" y2="289" marker-end="url(#a2)"/>
+        <text class="lab" x="319" y="283" text-anchor="middle">P3</text>
+        <line class="ln" x1="300" y1="373" x2="338" y2="373" marker-end="url(#a2)"/>
+        <text class="lab" x="319" y="367" text-anchor="middle">P4</text>
+        <line class="ln" x1="300" y1="541" x2="558" y2="541" marker-end="url(#a2)"/>
+        <text class="lab" x="319" y="535" text-anchor="middle">P5</text>
+        <line class="ln" x1="430" y1="541" x2="430" y2="390" marker-end="url(#a2)"/>
+        <text class="lab" x="437" y="470">suréchant. ×2</text>
+        <line class="ln" x1="430" y1="358" x2="430" y2="306" marker-end="url(#a2)"/>
+        <text class="lab" x="437" y="336">×2</text>
+        <!-- FPN -> PAN -> têtes -->
+        <line class="ln" x1="520" y1="289" x2="788" y2="289" marker-end="url(#a2)"/>
+        <line class="ln" x1="650" y1="289" x2="650" y2="356" marker-end="url(#a2)"/>
+        <text class="lab" x="657" y="328">conv /2</text>
+        <line class="ln" x1="520" y1="373" x2="558" y2="373" marker-end="url(#a2)"/>
+        <line class="ln" x1="740" y1="373" x2="788" y2="373" marker-end="url(#a2)"/>
+        <line class="ln" x1="650" y1="388" x2="650" y2="524" marker-end="url(#a2)"/>
+        <text class="lab" x="657" y="460">conv /2</text>
+        <line class="ln" x1="740" y1="541" x2="788" y2="541" marker-end="url(#a2)"/>
+
+        <!-- têtes -->
+        <rect class="ac" x="790" y="269" width="190" height="40" rx="3"/>
+        <text class="ts" x="800" y="285">Detect 80×80</text><text class="m" x="970" y="285" text-anchor="end">6400 ancres</text>
+        <text class="m" x="800" y="301">box 4×16</text><text class="m acc" x="970" y="301" text-anchor="end">cls 4</text>
+        <rect class="ac" x="790" y="353" width="190" height="40" rx="3"/>
+        <text class="ts" x="800" y="369">Detect 40×40</text><text class="m" x="970" y="369" text-anchor="end">1600 ancres</text>
+        <text class="m" x="800" y="385">box 4×16</text><text class="m acc" x="970" y="385" text-anchor="end">cls 4</text>
+        <rect class="ac" x="790" y="521" width="190" height="40" rx="3"/>
+        <text class="ts" x="800" y="537">Detect 20×20</text><text class="m" x="970" y="537" text-anchor="end">400 ancres</text>
+        <text class="m" x="800" y="553">box 4×16</text><text class="m acc" x="970" y="553" text-anchor="end">cls 4</text>
+        <text class="lab" x="790" y="250">petits véhicules (loin)</text>
+        <text class="lab" x="790" y="512">gros véhicules (bus, près)</text>
+
+        <!-- fusion -> NMS -->
+        <path class="ln" d="M980,289 H994 M980,373 H994 M980,541 H994"/>
+        <line class="ln" x1="994" y1="289" x2="994" y2="592" marker-end="url(#a2)"/>
+        <rect class="bx" x="560" y="594" width="440" height="44" rx="3"/>
+        <text class="ts" x="572" y="612">Décodage DFL + NMS</text>
+        <text class="m ink" x="988" y="612" text-anchor="end">8400 × (4 + 4) → N × 6</text>
+        <text class="m" x="572" y="629">sortie par boîte : x1, y1, x2, y2, score, classe</text>
+      </svg>
+    </div>
+    <figcaption>Tailles pour une entrée 640×640, variante <b>n</b> (largeur ×0,25). Le backbone divise la résolution par 2 à chaque <span class="mono">Conv /2</span> et fournit trois cartes de caractéristiques : <b>P3</b> (pas 8), <b>P4</b> (pas 16), <b>P5</b> (pas 32). Le neck les fusionne dans les deux sens (FPN puis PAN, <span class="mono">⊕</span> = concaténation). Chaque tête prédit, par cellule, la boîte comme 4 distributions de 16 valeurs (DFL) et 4 scores de classe. <b>Le fine-tuning remplace la sortie de classe COCO (80) par nos 4 classes</b> : car, bus, van, others.</figcaption>
+    <div class="formula">
+      <p>Fonction de perte minimisée pendant le fine-tuning (poids par défaut d'Ultralytics) :</p>
+      <div class="eq">L = 7,5 · L<sub>CIoU</sub>(boîte) + 0,5 · L<sub>BCE</sub>(classe) + 1,5 · L<sub>DFL</sub>(bords)</div>
+      <p>Les ancres positives sont choisies par l'assignateur TAL, qui combine score de classe et IoU. Entraînement arrêté à l'époque 26 (patience 8), meilleure époque 18 : mAP50 0,779 · mAP50-95 0,568.</p>
+    </div>
+  </figure>
+
+  <!-- ============ 3. BoT-SORT ============ -->
+  <figure>
+    <div class="fig-head"><span class="fig-no">FIG. 3</span><h2>Suivi : association en deux passes (ByteTrack / BoT-SORT)</h2></div>
+    <div class="plate">
+      <svg viewBox="0 0 1010 336" role="img" aria-label="Les détections sont séparées en fortes et faibles. Les pistes sont prédites par Kalman avec compensation du mouvement caméra. Première association des détections fortes, puis seconde des faibles avec les pistes restantes. Sorties : pistes mises à jour, nouvelles pistes, pistes perdues gardées 60 frames.">
+        <defs><marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs>
+        <!-- boucle frame suivante -->
+        <polyline class="ln d" points="990,274 1002,274 1002,18 360,18 360,38" marker-end="url(#a3)"/>
+        <path class="ln d" d="M990,64 H1002 M990,174 H1002"/>
+        <text class="lab" x="680" y="13" text-anchor="middle">pistes à la frame t+1</text>
+
+        <rect class="bx" x="20" y="40" width="200" height="48" rx="4"/>
+        <text class="t" x="120" y="60" text-anchor="middle">Détections YOLO</text>
+        <text class="m" x="120" y="77" text-anchor="middle">frame t, N × 6</text>
+        <rect class="bx" x="260" y="40" width="200" height="48" rx="4"/>
+        <text class="t" x="360" y="60" text-anchor="middle">Pistes (t−1)</text>
+        <text class="m" x="360" y="77" text-anchor="middle">actives + perdues</text>
+        <rect class="bx" x="500" y="40" width="220" height="48" rx="4"/>
+        <text class="t" x="610" y="60" text-anchor="middle">Prédiction de Kalman</text>
+        <text class="m acc" x="610" y="77" text-anchor="middle">+ GMC (mouvement caméra)</text>
+        <line class="ln" x1="460" y1="64" x2="498" y2="64" marker-end="url(#a3)"/>
+
+        <rect class="bx" x="20" y="150" width="200" height="48" rx="4"/>
+        <text class="t" x="120" y="170" text-anchor="middle">Détections fortes</text>
+        <text class="m" x="120" y="187" text-anchor="middle">score ≥ 0,30</text>
+        <rect class="bx" x="20" y="250" width="200" height="48" rx="4"/>
+        <text class="t" x="120" y="270" text-anchor="middle">Détections faibles</text>
+        <text class="m" x="120" y="287" text-anchor="middle">0,10 ≤ score &lt; 0,30</text>
+        <line class="ln" x1="120" y1="88" x2="120" y2="148" marker-end="url(#a3)"/>
+        <polyline class="ln" points="20,64 10,64 10,274 18,274" marker-end="url(#a3)"/>
+
+        <rect class="bx" x="500" y="150" width="220" height="48" rx="4"/>
+        <text class="t" x="610" y="170" text-anchor="middle">Association 1</text>
+        <text class="m" x="610" y="187" text-anchor="middle">IoU + algo. hongrois</text>
+        <rect class="bx" x="500" y="250" width="220" height="48" rx="4"/>
+        <text class="t" x="610" y="270" text-anchor="middle">Association 2</text>
+        <text class="m" x="610" y="287" text-anchor="middle">IoU, pistes restantes</text>
+        <line class="ln" x1="220" y1="174" x2="498" y2="174" marker-end="url(#a3)"/>
+        <text class="lab" x="360" y="167" text-anchor="middle">1re passe</text>
+        <line class="ln" x1="220" y1="274" x2="498" y2="274" marker-end="url(#a3)"/>
+        <text class="lab" x="360" y="267" text-anchor="middle">2e passe (occultations)</text>
+        <line class="ln" x1="610" y1="88" x2="610" y2="148" marker-end="url(#a3)"/>
+        <text class="lab" x="617" y="123">pistes prédites</text>
+        <line class="ln" x1="610" y1="198" x2="610" y2="248" marker-end="url(#a3)"/>
+        <text class="lab" x="617" y="228">pistes non appariées</text>
+        <text class="lab" x="610" y="318" text-anchor="middle">détections faibles non appariées : écartées</text>
+
+        <rect class="bx" x="790" y="40" width="200" height="48" rx="4"/>
+        <text class="t" x="890" y="60" text-anchor="middle">Nouvelle piste</text>
+        <text class="m" x="890" y="77" text-anchor="middle">si score ≥ 0,40 → nouvel ID</text>
+        <rect class="bx" x="790" y="150" width="200" height="48" rx="4"/>
+        <text class="t" x="890" y="170" text-anchor="middle">Piste appariée</text>
+        <text class="m" x="890" y="187" text-anchor="middle">Kalman mis à jour, même ID</text>
+        <rect class="ac" x="790" y="250" width="200" height="48" rx="4"/>
+        <text class="t" x="890" y="270" text-anchor="middle">Piste perdue</text>
+        <text class="m acc" x="890" y="287" text-anchor="middle">gardée 60 frames (2,4 s)</text>
+        <polyline class="ln" points="720,158 750,158 750,64 788,64" marker-end="url(#a3)"/>
+        <line class="ln" x1="720" y1="174" x2="788" y2="174" marker-end="url(#a3)"/>
+        <polyline class="ln" points="720,262 762,262 762,190 788,190" marker-end="url(#a3)"/>
+        <line class="ln" x1="720" y1="286" x2="788" y2="286" marker-end="url(#a3)"/>
+      </svg>
+    </div>
+    <figcaption>Le filtre de Kalman suit l'état <span class="mono">(x, y, w, h)</span> du centre de la boîte et ses vitesses, et prédit sa position à la frame t. La <b>seconde passe</b> récupère les véhicules partiellement cachés, dont le score baisse. <b>BoT-SORT</b> ajoute la compensation du mouvement caméra (flux optique) avant l'association. Valeurs = notre réglage (<span class="mono">configs/trackers/botsort_tuned.yaml</span>) ; le <span class="mono">track_buffer</span> passé de 30 à 60 frames évite un nouvel ID quand un bus masque une voiture. C'est la configuration la plus performante : HOTA 76,0 et 128 changements d'ID sur 9 séquences, contre 345 pour la baseline.</figcaption>
+  </figure>
+
+  <!-- ============ 4. Analyses ============ -->
+  <figure>
+    <div class="fig-head"><span class="fig-no">FIG. 4</span><h2>Modules d'analyse ajoutés</h2></div>
+    <div class="plate">
+      <svg viewBox="0 0 1010 270" role="img" aria-label="Pour chaque piste, le point d'ancrage bas-centre alimente trois modules : comptage par franchissement de ligne, vitesse par homographie, carte de chaleur. Chacun produit un fichier.">
+        <defs><marker id="a4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs>
+        <rect class="bx" x="20" y="107" width="190" height="56" rx="4"/>
+        <text class="t" x="115" y="131" text-anchor="middle">Piste i, frame t</text>
+        <text class="m" x="115" y="149" text-anchor="middle">boîte · classe · ID</text>
+        <rect class="bx" x="250" y="107" width="190" height="56" rx="4"/>
+        <text class="t" x="345" y="131" text-anchor="middle">Point d'ancrage</text>
+        <text class="m" x="345" y="149" text-anchor="middle">((x1+x2)/2, y2)</text>
+        <line class="ln" x1="210" y1="135" x2="248" y2="135" marker-end="url(#a4)"/>
+        <path class="ln" d="M440,135 H466 M466,45 V225"/>
+        <line class="ln" x1="466" y1="45" x2="488" y2="45" marker-end="url(#a4)"/>
+        <line class="ln" x1="466" y1="135" x2="488" y2="135" marker-end="url(#a4)"/>
+        <line class="ln" x1="466" y1="225" x2="488" y2="225" marker-end="url(#a4)"/>
+
+        <rect class="ac" x="490" y="17" width="300" height="56" rx="4"/>
+        <text class="t" x="504" y="41">Comptage directionnel</text>
+        <text class="m" x="504" y="59">segment p(t−1)→p(t) ∩ ligne, 1×/ID</text>
+        <rect class="ac" x="490" y="107" width="300" height="56" rx="4"/>
+        <text class="t" x="504" y="131">Vitesse (km/h)</text>
+        <text class="m" x="504" y="149">homographie H image→sol, 10 frames</text>
+        <rect class="ac" x="490" y="197" width="300" height="56" rx="4"/>
+        <text class="t" x="504" y="221">Carte de chaleur</text>
+        <text class="m" x="504" y="239">accumulation des ancrages</text>
+
+        <rect class="bx" x="830" y="17" width="170" height="56" rx="4"/>
+        <text class="t" x="915" y="41" text-anchor="middle">crossings.csv</text>
+        <text class="m" x="915" y="59" text-anchor="middle">par classe et sens</text>
+        <rect class="bx" x="830" y="107" width="170" height="56" rx="4"/>
+        <text class="t" x="915" y="131" text-anchor="middle">tracks.csv</text>
+        <text class="m" x="915" y="149" text-anchor="middle">vitesse moy. et max</text>
+        <rect class="bx" x="830" y="197" width="170" height="56" rx="4"/>
+        <text class="t" x="915" y="221" text-anchor="middle">heatmap.jpg</text>
+        <text class="m" x="915" y="239" text-anchor="middle">zones fréquentées</text>
+        <line class="ln" x1="790" y1="45" x2="828" y2="45" marker-end="url(#a4)"/>
+        <line class="ln" x1="790" y1="135" x2="828" y2="135" marker-end="url(#a4)"/>
+        <line class="ln" x1="790" y1="225" x2="828" y2="225" marker-end="url(#a4)"/>
+      </svg>
+    </div>
+    <figcaption>On utilise le <b>bas-centre</b> de la boîte, le point où le véhicule touche la route : c'est le seul point dont la position au sol est fiable pour l'homographie. Un véhicule est compté quand le segment entre ses deux dernières positions coupe la ligne virtuelle ; le signe du produit vectoriel donne le sens, et chaque ID n'est compté qu'une fois. La vitesse vient de la distance parcourue <b>en mètres</b> (4 points de calibration sur la chaussée) sur 10 frames à 25 images/s, lissée par moyenne exponentielle. Démo MVI_20035 : 800 frames, 50 franchissements, environ 33 images/s sur un GPU T4.</figcaption>
+  </figure>
+</main>

@@ -47,7 +47,7 @@ class TrafficPipeline:
         tracker: str = "bytetrack.yaml",
         scene: dict | None = None,
         conf: float = 0.25,
-        imgsz: int = 960,
+        imgsz: int = 640,
         device: str | None = None,
     ):
         from ultralytics import YOLO  # import tardif : les tests n'en ont pas besoin
@@ -81,7 +81,10 @@ class TrafficPipeline:
             n_total = min(n_total, max_frames) if n_total else max_frames
 
         video_out = out_dir / "annotated.mp4"
-        writer = cv2.VideoWriter(str(video_out), cv2.VideoWriter_fourcc(*"mp4v"), fps, (w, h))
+        # H.264 (avc1) pour que la vidéo soit lisible dans le navigateur (démo Gradio) ; mp4v en secours.
+        writer = cv2.VideoWriter(str(video_out), cv2.VideoWriter_fourcc(*"avc1"), fps, (w, h))
+        if not writer.isOpened():
+            writer = cv2.VideoWriter(str(video_out), cv2.VideoWriter_fourcc(*"mp4v"), fps, (w, h))
 
         line = self.scene.get("count_line")
         counter = LineCounter(*line) if line else None

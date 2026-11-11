@@ -29,7 +29,7 @@ def main() -> None:
     ap.add_argument("--out", default="outputs")
     ap.add_argument("--mot-out", default=None, help="fichier de sortie au format MOTChallenge")
     ap.add_argument("--conf", type=float, default=0.25)
-    ap.add_argument("--imgsz", type=int, default=960)
+    ap.add_argument("--imgsz", type=int, default=640)
     ap.add_argument("--device", default=None, help="'cpu', '0', ...")
     ap.add_argument("--max-frames", type=int, default=None)
     args = ap.parse_args()

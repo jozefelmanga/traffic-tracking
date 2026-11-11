@@ -66,7 +66,8 @@ python scripts/track_video.py --video demo.mp4 --weights weights/best.pt \
     --tracker configs/trackers/bytetrack_tuned.yaml --scene configs/scene_example.json \
     --out outputs/
 
-# 3) Démo
+# 3) Démo (CPU suffisant ; poids dans weights/best.pt, vidéos d'exemple
+#    produites par la dernière cellule du notebook : demo_inputs/MVI_20035.mp4, MVI_40752.mp4)
 python app.py
 ```
 
@@ -79,6 +80,23 @@ Licence : **CC BY-NC-SA 3.0** (usage académique non commercial) — à vérifie
 
 - Détection : mAP50, mAP50-95 (Ultralytics `val`).
 - Suivi : MOTA, IDF1, HOTA, ID switches ([TrackEval](https://github.com/JonathonLuiten/TrackEval)).
+
+## Résultats (9 séquences de validation)
+
+**Détection** (YOLO11n fine-tuné, meilleure époque 18 / 26) : mAP50 = **0,778**, mAP50-95 = **0,568**
+(AP50 : car 0,937 · bus 0,948 · van 0,709 · others 0,519).
+
+**Suivi** (protocole UA-DETRAC : boîtes des zones ignorées retirées, `scripts/filter_ignored.py`) :
+
+| Configuration | HOTA | MOTA | IDF1 | ID switches |
+|---|---|---|---|---|
+| **Fine-tuné + BoT-SORT réglé** | **76,0** | **82,4** | **90,2** | **128** |
+| Fine-tuné + ByteTrack réglé | 70,8 | 74,8 | 86,4 | 228 |
+| Fine-tuné + ByteTrack | 70,6 | 73,8 | 86,1 | 241 |
+| COCO d'origine + ByteTrack (baseline) | 65,7 | 73,1 | 82,7 | 345 |
+
+Vitesse de la chaîne complète : ≈ 33 images/s sur GPU T4. Schéma de l'architecture : `docs/architecture.html` ;
+présentation : `docs/presentation.pptx` ; difficultés rencontrées : `docs/errors_log.md`.
 
 ## Références
 
