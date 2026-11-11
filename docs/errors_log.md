@@ -44,6 +44,40 @@ Notez chaque erreur **au moment où elle arrive** : message complet, capture d'�
 
 ---
 
+### 2026-11-11 — Échec de l'évaluation TrackEval après 2 h de calcul
+1. **Problème :** la version 1 du notebook Kaggle a échoué au bout de **7595 s**, à la toute dernière étape
+   (section 6). L'entraînement (30 époques) et le suivi des 4 configurations sur les 9 séquences de validation
+   avaient pourtant réussi.
+2. **Message observé :**
+   ```
+   File "/kaggle/working/TrackEval/trackeval/datasets/mot_challenge_2d_box.py", line 156, in _get_seq_info
+       if not os.path.isfile(seqmap_file):
+   TypeError: stat: path should be string, bytes, os.PathLike or integer, not list
+   ```
+   puis, dans la cellule suivante (erreur en cascade) :
+   ```
+   ValueError: No objects to concatenate
+   ```
+   La configuration affichée par TrackEval montre la cause : `SEQMAP_FILE : ['/kaggle/working/trackeval/seqmap.txt']`
+   (une liste au lieu d'une chaîne). (capture : `docs/img/err_trackeval_seqmap.png`)
+3. **Cause :** le script en ligne de commande `run_mot_challenge.py` déclare tous ses arguments avec `nargs='+'`
+   et ne reconvertit en chaîne que les paramètres dont la valeur par défaut est une chaîne. Or la valeur par
+   défaut de `SEQMAP_FILE` est `None` → la liste `[chemin]` est transmise telle quelle à `os.path.isfile`.
+   La 2ᵉ erreur n'est qu'une conséquence : aucun fichier `pedestrian_summary.txt` n'a été produit.
+4. **Solutions envisagées :** (a) passer par `--SEQMAP_FOLDER` + `--BENCHMARK` pour contourner l'argument ;
+   (b) modifier le script de TrackEval ; (c) **retenue :** appeler TrackEval par son **API Python**
+   (`trackeval.Evaluator(...).evaluate(...)`) avec un dictionnaire de configuration : plus d'analyse
+   d'arguments, et les métriques sont lues directement dans le résultat au lieu d'un fichier texte.
+   En plus : correctif préventif `np.float → float` (numpy ≥ 1.24), et **reprise** depuis l'Output de la
+   version 1 (poids `best.pt` + sorties de suivi) pour ne pas refaire 2 h de calcul.
+5. **Résultat après correction :** (à compléter : tableau HOTA / MOTA / IDF1 / IDSW de la version 2, capture
+   `docs/img/fix_trackeval.png`)
+
+**Leçon :** tester la chaîne d'évaluation sur **une seule séquence** avant le long calcul, et rendre le notebook
+reprenable (ne recalculer que ce qui manque).
+
+---
+
 ## Points à surveiller (problèmes fréquents sur ce type de projet)
 
 - Session Kaggle interrompue pendant l'entraînement → reprendre avec `last.pt` (`resume=True`).
