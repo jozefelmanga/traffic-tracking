@@ -21,6 +21,7 @@ frame ──► YOLO11 (fine-tuné UA-DETRAC) ──► ByteTrack / BoT-SORT ─
 | 5 | Carte de chaleur des trajectoires + export CSV | `src/traffic/analytics.py` (`Heatmap`) |
 | 6 | Comparaison ByteTrack vs BoT-SORT et réglage de leurs paramètres (MOTA, IDF1, HOTA) | `configs/trackers/`, `scripts/track_video.py --mot-out` |
 | 7 | Démo Gradio | `app.py` |
+| 8 | Évaluation du suivi selon le protocole UA-DETRAC (boîtes des zones ignorées retirées avant TrackEval) | `scripts/filter_ignored.py` |
 
 ## Structure
 
@@ -33,7 +34,8 @@ traffic-tracking/
 │   └── trackers/               # ByteTrack / BoT-SORT réglés
 ├── scripts/
 │   ├── convert_detrac.py       # UA-DETRAC XML → YOLO (+ GT format MOTChallenge)
-│   └── track_video.py          # pipeline complet en ligne de commande
+│   ├── track_video.py          # pipeline complet en ligne de commande
+│   └── filter_ignored.py       # retire les zones ignorées avant TrackEval
 ├── src/traffic/
 │   ├── analytics.py            # comptage, vitesse, heatmap (numpy pur, testé)
 │   └── pipeline.py             # YOLO + tracker + analytics + rendu

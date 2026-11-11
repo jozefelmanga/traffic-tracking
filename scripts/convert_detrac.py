@@ -60,10 +60,12 @@ def to_yolo_line(cls: int, x: float, y: float, w: float, h: float, iw: int, ih: 
     return f"{cls} {cx:.6f} {cy:.6f} {(x1 - x0) / iw:.6f} {(y1 - y0) / ih:.6f}"
 
 
-def write_mot_gt(seq: str, frames: dict, n_frames: int, out_root: Path) -> None:
-    """GT MOTChallenge : frame,id,x,y,w,h,conf,class,visibility + seqinfo.ini."""
+def write_mot_gt(seq: str, frames: dict, n_frames: int, out_root: Path, ignored=()) -> None:
+    """GT MOTChallenge : frame,id,x,y,w,h,conf,class,visibility + seqinfo.ini
+    + ignored.txt (zones ignorées x,y,w,h, utilisées par scripts/filter_ignored.py)."""
     seq_dir = out_root / seq
     (seq_dir / "gt").mkdir(parents=True, exist_ok=True)
+    (seq_dir / "ignored.txt").write_text("".join(f"{x:.2f},{y:.2f},{w:.2f},{h:.2f}\n" for x, y, w, h in ignored))
     with open(seq_dir / "gt" / "gt.txt", "w") as f:
         for num in sorted(frames):
             for tid, cls, x, y, w, h in frames[num]:
@@ -110,7 +112,7 @@ def main() -> None:
 
         if args.mot_gt and split == "val":
             n_frames = len(list(img_dir.glob("img*.jpg"))) or max(frames, default=0)
-            write_mot_gt(seq, frames, n_frames, args.out / "mot_gt")
+            write_mot_gt(seq, frames, n_frames, args.out / "mot_gt", ignored)
 
         for num in sorted(frames)[:: args.stride]:
             src = img_dir / f"img{num:05d}.jpg"

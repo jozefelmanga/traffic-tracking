@@ -109,3 +109,22 @@ def test_convert_detrac_end_to_end(tmp_path):
     # vérité terrain MOT
     gt = (out / "mot_gt" / "MVI_00001" / "gt" / "gt.txt").read_text().splitlines()
     assert gt[0].startswith("1,1,100.00,100.00,50.00,40.00") and len(gt) == 3
+    assert (out / "mot_gt" / "MVI_00001" / "ignored.txt").read_text() == "0.00,0.00,20.00,20.00\n"
+
+
+def test_filter_ignored_end_to_end(tmp_path):
+    gt, trk = tmp_path / "gt", tmp_path / "trk"
+    (gt / "MVI_1" / "gt").mkdir(parents=True)
+    (gt / "MVI_1" / "seqinfo.ini").write_text("[Sequence]\n")
+    (gt / "MVI_1" / "ignored.txt").write_text("0.00,0.00,100.00,100.00\n")
+    (gt / "MVI_1" / "gt" / "gt.txt").write_text("1,1,500,300,40,40,1,1,1\n")
+    (trk / "t" / "data").mkdir(parents=True)
+    # boîte 1 entièrement ignorée, boîte 2 à 25 % dans la zone (gardée), boîte 3 hors zone
+    (trk / "t" / "data" / "MVI_1.txt").write_text(
+        "1,1,10,10,20,20,0.9,-1,-1,-1\n1,2,90,90,20,20,0.9,-1,-1,-1\n1,3,500,300,40,40,0.9,-1,-1,-1\n")
+    subprocess.run([sys.executable, str(ROOT / "scripts" / "filter_ignored.py"), "--gt", str(gt), "--trackers",
+                    str(trk), "--out-gt", str(tmp_path / "gt2"), "--out-trackers", str(tmp_path / "trk2")], check=True)
+    ids = [l.split(",")[1] for l in (tmp_path / "trk2" / "t" / "data" / "MVI_1.txt").read_text().splitlines()]
+    assert ids == ["2", "3"]
+    assert (tmp_path / "gt2" / "MVI_1" / "gt" / "gt.txt").read_text().startswith("1,1,500")
+    assert (tmp_path / "gt2" / "MVI_1" / "seqinfo.ini").exists()
