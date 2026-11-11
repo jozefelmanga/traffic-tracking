@@ -17,6 +17,28 @@ Notez chaque erreur **au moment où elle arrive** : message complet, capture d'�
 
 ---
 
+### 2026-11-11 — Annotations de test chargées à la place de celles d'entraînement
+1. **Problème :** la cellule de détection du dataset (notebook Kaggle, section 2) a sélectionné le dossier
+   d'annotations **de test** au lieu de celui d'entraînement.
+2. **Comportement observé :**
+   ```
+   XML    : /kaggle/input/datasets/bratjay/ua-detrac-orig/DETRAC-Test-Annotations-XML/DETRAC-Test-Annotations-XML (40 séquences)
+   IMAGES : /kaggle/input/datasets/bratjay/ua-detrac-orig/DETRAC-Images/DETRAC-Images (40 séquences avec images)
+   ```
+   Attendu : 60 séquences d'entraînement. Pas d'erreur Python : le bug était silencieux.
+   (capture : `docs/img/err_xml_test.png`)
+3. **Cause :** `XML = os.path.dirname(sorted(xmls)[0])` prend le premier chemin dans l'ordre alphabétique ;
+   or `DETRAC-Test-…` < `DETRAC-Train-…` (« e » < « r »). Le code supposait une version du dataset ne
+   contenant que les annotations d'entraînement.
+4. **Solutions envisagées :** (a) chemin écrit en dur → fragile si on change de version du dataset ;
+   (b) **retenue :** lister tous les dossiers XML et choisir explicitement celui dont le nom contient « Train »,
+   avec une assertion explicite sinon, et afficher tous les dossiers trouvés.
+5. **Résultat après correction :** (à compléter : capture montrant « 60 séquences »)
+
+**Leçon :** vérifier les comptes (60 train / 40 test d'après l'article UA-DETRAC) avant de lancer un traitement long.
+
+---
+
 ## Points à surveiller (problèmes fréquents sur ce type de projet)
 
 - Session Kaggle interrompue pendant l'entraînement → reprendre avec `last.pt` (`resume=True`).
