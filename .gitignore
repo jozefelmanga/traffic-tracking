@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.venv/
+.ipynb_checkpoints/
+
+# données et sorties lourdes (non versionnées)
+data/
+runs/
+outputs/
+weights/*.pt
+*.mp4
+*.avi
+!docs/**/*.mp4
+.pytest_cache/

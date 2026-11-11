@@ -1,0 +1,10 @@
+# Dataset UA-DETRAC converti au format YOLO par scripts/convert_detrac.py
+path: data/detrac_yolo
+train: images/train
+val: images/val
+
+names:
+  0: car
+  1: bus
+  2: van
+  3: others

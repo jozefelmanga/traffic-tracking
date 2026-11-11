@@ -1,0 +1,9 @@
+# ByteTrack réglé pour des véhicules (format Ultralytics).
+# Valeurs d'origine Ultralytics en commentaire — à ajuster après évaluation IDF1/HOTA.
+tracker_type: bytetrack
+track_high_thresh: 0.30   # défaut 0.25 : 1re association avec détections sûres
+track_low_thresh: 0.10    # défaut 0.10 : 2e association (détections faibles, occultations)
+new_track_thresh: 0.40    # défaut 0.25 : évite de créer des pistes sur des faux positifs
+track_buffer: 60          # défaut 30  : garde une piste perdue 2 s à 30 fps (occultation par un bus)
+match_thresh: 0.80        # défaut 0.80
+fuse_score: True

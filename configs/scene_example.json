@@ -1,0 +1,9 @@
+{
+  "_comment": "Coordonnées en pixels de la vidéo. À recalibrer pour chaque caméra.",
+  "count_line": [[100, 380], [860, 380]],
+  "homography": {
+    "_comment": "4 points image (quadrilatère sur la chaussée) et leurs positions réelles en mètres. Ici : voie de 3.5 m x 4 voies, 30 m de profondeur.",
+    "image_points": [[330, 200], [630, 200], [920, 520], [40, 520]],
+    "world_points": [[0, 0], [14, 0], [14, 30], [0, 30]]
+  }
+}
