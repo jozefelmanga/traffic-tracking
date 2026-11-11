@@ -33,7 +33,12 @@ Notez chaque erreur **au moment où elle arrive** : message complet, capture d'�
 4. **Solutions envisagées :** (a) chemin écrit en dur → fragile si on change de version du dataset ;
    (b) **retenue :** lister tous les dossiers XML et choisir explicitement celui dont le nom contient « Train »,
    avec une assertion explicite sinon, et afficher tous les dossiers trouvés.
-5. **Résultat après correction :** (à compléter : capture montrant « 60 séquences »)
+5. **Résultat après correction :** les deux dossiers sont listés, le bon est choisi :
+   ```
+   XML    : /kaggle/input/datasets/bratjay/ua-detrac-orig/DETRAC-Train-Annotations-XML/DETRAC-Train-Annotations-XML (60 séquences)
+   IMAGES : /kaggle/input/datasets/bratjay/ua-detrac-orig/DETRAC-Images/DETRAC-Images (60 séquences avec images)
+   ```
+   60 séquences = valeur attendue d'après l'article. (capture : `docs/img/fix_xml_train.png`)
 
 **Leçon :** vérifier les comptes (60 train / 40 test d'après l'article UA-DETRAC) avant de lancer un traitement long.
 
